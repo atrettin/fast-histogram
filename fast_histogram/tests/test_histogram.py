@@ -232,11 +232,94 @@ def test_list():
 
     np.testing.assert_equal(result_list, result_arr)
     
-    result_list_dd = histogramdd((x_list,), bins=10, range=((0, 10),))
-    result_arr_dd = histogramdd((x_arr,), bins=10, range=((0, 10),))
+    result_list_dd = histogramdd(x_list, bins=10, range=((0, 10),))
+    result_arr_dd = histogramdd(x_arr, bins=10, range=((0, 10),))
 
     np.testing.assert_equal(result_list_dd, result_arr_dd)
 
+def test_histogramdd_interface():
+    # make sure the interface of histogramdd works as numpy.histogramdd
+    x_list = [1.4, 2.1, 4.2, 8.7, 5.1]
+    x_arr = np.array(x_list)
+    y_list = [6.6, 3.2, 2.9, 3.9, 0.1]
+    y_arr = np.array(y_list)
+    
+    # test 1D (needs special handling in case the sample is a list)
+    sample = x_arr
+    result_np, _ = np.histogramdd(sample, bins=10, range=((0, 10),))
+    result_fh = histogramdd(sample, bins=10, range=((0, 10),))
+    np.testing.assert_equal(result_np, result_fh)
+    
+    sample = x_list
+    result_np, _ = np.histogramdd(sample, bins=10, range=((0, 10),))
+    result_fh = histogramdd(sample, bins=10, range=((0, 10),))
+    np.testing.assert_equal(result_np, result_fh)
+    
+    # test (D, N) array_like
+    sample = (x_arr, y_arr)
+    result_np, _ = np.histogramdd(sample, bins=10, range=((0, 10), (0, 10)))
+    result_fh = histogramdd(sample, bins=10, range=((0, 10), (0, 10)))
+    np.testing.assert_equal(result_np, result_fh)
+    
+    sample = [x_arr, y_arr]
+    result_np, _ = np.histogramdd(sample, bins=10, range=((0, 10), (0, 10)))
+    result_fh = histogramdd(sample, bins=10, range=((0, 10), (0, 10)))
+    np.testing.assert_equal(result_np, result_fh)
+    
+    sample = (x_list, y_list)
+    result_np, _ = np.histogramdd(sample, bins=10, range=((0, 10), (0, 10)))
+    result_fh = histogramdd(sample, bins=10, range=((0, 10), (0, 10)))
+    np.testing.assert_equal(result_np, result_fh)
+    
+    sample = [x_list, y_list]
+    result_np, _ = np.histogramdd(sample, bins=10, range=((0, 10), (0, 10)))
+    result_fh = histogramdd(sample, bins=10, range=((0, 10), (0, 10)))
+    np.testing.assert_equal(result_np, result_fh)
+    
+    # test (N, D) array
+    sample = np.vstack([x_arr, y_arr]).T
+    result_np, _ = np.histogramdd(sample, bins=10, range=((0, 10), (0, 10)))
+    result_fh = histogramdd(sample, bins=10, range=((0, 10), (0, 10)))
+    np.testing.assert_equal(result_np, result_fh)
+    
+    sample = np.vstack([x_list, y_list]).T
+    result_np, _ = np.histogramdd(sample, bins=10, range=((0, 10), (0, 10)))
+    result_fh = histogramdd(sample, bins=10, range=((0, 10), (0, 10)))
+    np.testing.assert_equal(result_np, result_fh)
+    
+def test_bin_edge_inclusivity():
+    # All bin intervals are closed on the left side and open on the right side, 
+    # but in numpy the last bin interval is closed on both sides.
+    # That means if we have
+    #     x = np.arange(11)
+    # Then numpy gives
+    #     np.histogram(x, bins=10, range=(0, 10))[0]
+    #     ---> array([1, 1, 1, 1, 1, 1, 1, 1, 1, 2])
+    # In 2D, values at the edges of all dimensions can be included:
+    #     X, Y = np.meshgrid(np.arange(4), np.arange(4))
+    #     np.histogram2d(X.ravel(), Y.ravel(), bins=(3,3), range=((0, 3), (0, 3)))
+    #     ---> (array([[1., 1., 2.],
+    #                  [1., 1., 2.],
+    #                  [2., 2., 4.]]),
+    #           array([0., 1., 2., 3.]),
+    #           array([0., 1., 2., 3.]))
+    
+    # testing 1D
+    x = np.arange(11)
+    result_np = np.histogram(x, bins=10, range=(0, 10))[0]
+    result_fh = histogram1d(x, bins=10, range=(0, 10))
+    result_dd = histogramdd((x,), bins=[10], range=[(0, 10)])
+    np.testing.assert_equal(result_np, result_fh)
+    np.testing.assert_equal(result_np, result_dd)
+
+    # testing 2D
+    X, Y = np.meshgrid(np.arange(4), np.arange(4))
+    result_np = np.histogram2d(X.ravel(), Y.ravel(),
+                               bins=(3, 3), range=((0, 3), (0, 3)))[0]
+    result_fh = histogram2d(X.ravel(), Y.ravel(), bins=(3, 3), range=((0, 3), (0, 3)))
+    result_dd = histogramdd((X.ravel(), Y.ravel()), bins=(3, 3), range=((0, 3), (0, 3)))
+    np.testing.assert_equal(result_np, result_fh)
+    np.testing.assert_equal(result_np, result_dd)
 
 def test_non_contiguous():
 
